@@ -6,7 +6,6 @@
 *.o
 *.pyc
 .nfs*
-*.pdf
 *.aux
 *.tar
 *.gz
