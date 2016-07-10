@@ -92,6 +92,18 @@ Requirements and General instructions
 \end_layout
 
 \begin_layout Itemize
+The software is available at 
+\family typewriter
+www.sb.cs.cmu.edu/timepath
+\end_layout
+
+\begin_layout Itemize
+The github is located at 
+\family typewriter
+https://github.com/tmfs10/timepath
+\end_layout
+
+\begin_layout Itemize
 You must have Java 7.0 or above and Python 2.7+ installed on your machine.
 \end_layout
 
