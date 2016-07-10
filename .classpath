@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="gephi-toolkit-0.8.7-all/gephi-toolkit.jar"/>
+	<classpathentry kind="lib" path="commons-math3.jar"/>
+	<classpathentry kind="lib" path="javatuples.jar"/>
+	<classpathentry kind="lib" path="trove.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

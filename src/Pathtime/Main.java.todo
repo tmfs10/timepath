@@ -1,0 +1,547 @@
+
+package Pathtime;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.LineNumberReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+
+import gnu.trove.list.linked.TIntLinkedList;
+import gnu.trove.set.hash.TIntHashSet;
+
+import java.util.*;
+
+public class Main {
+	
+	class GeneObjDeltaCompare implements Comparator<Integer> {
+		double [] geneCosts;
+		public GeneObjDeltaCompare(double[] geneCosts) {
+			this.geneCosts = geneCosts;
+		}
+		
+		public int compare(Integer g1, Integer g2) {
+			double s1 = geneCosts[g1];
+			double s2 = geneCosts[g2];
+			
+			if (s1 < s2)
+				return 1;
+			else if (s1 > s2)
+				return -1;
+			else
+				return 0;
+		}
+	}
+
+	public double l1, l2;
+	public int L, N;
+	public int num_genes, num_paths;
+	public short[][] P; // paths
+	public int[][] P_g;
+	public byte[] b_p, b_g; // bv for paths, genes
+	public byte[] best_b_p, best_b_g; // bv for best paths, genes
+	public double[] w_P; // path scores
+	public short[] index_to_targets;
+	public short[] targets_to_index;
+	public short[][] T;
+	public double[][] f_g_t;
+	public double[] f;
+	public double[] delta_g;
+
+    public HashMap<String, Short> g_to_i; // gene name to index
+    public String [] i_to_g; // gene index to name
+	
+	public static void main(String[] args) {
+		
+		if (args.length < 5) {
+			System.err.println("Usage: java Main \n " +
+					"\t -- <path file>\n" +
+					"\t -- <l1>\n" +
+					"\t -- <l2>\n" +
+					"\t -- <L>\n" +
+					"\t -- <N>\n");
+			System.exit(1);
+		}
+		Main main = new Main(args);
+	}
+	
+	public Main(String [] args) {
+		String pathFilepath = args[0];
+		l1 = Double.parseDouble(args[1]);
+		l2 = Double.parseDouble(args[2]);
+		L = Integer.parseInt(args[3]);
+		N = Integer.parseInt(args[4]);
+		
+		readData(pathFilepath);
+		System.err.println("Data read");
+		filter_paths();
+		print_paths(pathFilepath);
+	}
+	
+	public void print_paths(String pathFilepath) {
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new FileReader(pathFilepath));
+            String line;
+            for (int lineNum=0; 
+            		(line = br.readLine()) != null;
+            		++lineNum) 
+            {
+            		if (b_p[lineNum] == 1) {
+            			System.out.println(line);
+            		}
+            }
+        }
+        catch(IOException ie) {
+            ie.printStackTrace();
+        }
+	}
+	
+	public void filter_paths() {
+		System.err.println("l1, l2: " + l1 + ", " + l2);
+		compute_initial_delta();
+		/*
+		for (int i=0; i<num_genes; ++i) {
+			checkDelta(i);
+		}
+		*/
+		int initialNumPaths = 0;
+		double curObj = 0.;
+		for (int i=0; i<num_paths; ++i) {
+			initialNumPaths += b_p[i];
+		}
+		int initialNumGenes = 0;
+		for (int i=0; i<num_genes; ++i) {
+			initialNumGenes += b_g[i];
+		}
+		int initialNumTargets = 0;
+		for (int i=0; i<index_to_targets.length; ++i) {
+			initialNumTargets += b_g[index_to_targets[i]];
+		}
+		System.err.println("initialNumPaths: " + initialNumPaths);
+		System.err.println("initialNumGenes: " + initialNumGenes);
+		System.err.println("initialNumTargets: " + initialNumTargets);
+		int numIterRun = 0;
+
+		TIntLinkedList tabuList = new TIntLinkedList();
+		Integer[] geneOrder = new Integer[num_genes];
+		for (int i=0; i<geneOrder.length; ++i) {
+			geneOrder[i] = i;
+		}
+		
+		double bestSolutionObj = curObj;
+		
+		for (int i=0; i<b_g.length; ++i) {
+			best_b_g[i] = b_g[i];
+		}
+		for (int i=0; i<b_p.length; ++i) {
+			best_b_p[i] = b_p[i];
+		}
+
+		for (;numIterRun < N; ++numIterRun) {
+			Arrays.sort(geneOrder, new GeneObjDeltaCompare(delta_g));
+
+			/*
+			double best_delta = -Double.MAX_VALUE;
+			int g = -1;
+			for (short i=0; i<numGenes; ++i) {
+				if (delta_g[i] > best_delta) {
+					best_delta = delta_g[i];
+					g = i;
+				}
+			}
+			System.err.println("best_delta:" + best_delta + ", " + 
+					g + ", " + 
+					initialNumGenes + ", " +
+					initialNumTargets + ", " +
+					b_g[g]);
+			if (best_delta < 0.001 || b_g[g] == 0) { // TODO
+				break;
+			}
+			*/
+
+			int g = -1;
+			for (int i=0; i<num_genes; ++i) {
+				int curG = geneOrder[i];
+				if (!tabuList.contains(curG)) {
+					g = curG;
+					break;
+				}
+			}
+			System.err.println(numIterRun + ": bestG: " + g + ", " + delta_g[g] + ", " + b_g[g]);
+			assert (g != -1);
+			curObj += delta_g[g];
+			
+			boolean newBest = false;
+			if (curObj > bestSolutionObj) {
+				bestSolutionObj = curObj;
+				newBest = true;
+			}
+			
+			if (tabuList.size() >= L) {
+				assert tabuList.size() == L : tabuList.size();
+				tabuList.removeAt(0);
+			}
+			tabuList.add(g);
+			
+			double cache_delta2 = delta_g[g];
+			add_target_penalty(-l2);
+			double cache_delta = delta_g[g];
+			if (b_g[g] == 1) {
+				b_g[g] = 0;
+				--initialNumGenes;
+				delta_g[g] -= 2*l1;
+				update_delta_on_deactivation(g);
+			}
+			else {
+				++initialNumGenes;
+				b_g[g] = 1;
+				delta_g[g] += 2*l1;
+				int numActivated = update_delta_on_activation(g);
+				System.err.println("numActivated: " + numActivated);
+				assert numActivated > 0 : numActivated;
+			}
+			if (newBest) {
+				for (int i=0; i<b_g.length; ++i) {
+					best_b_g[i] = b_g[i];
+				}
+				for (int i=0; i<b_p.length; ++i) {
+					best_b_p[i] = b_p[i];
+				}
+			}
+			
+			assert Math.abs(delta_g[g]+cache_delta) < 0.1 : delta_g[g] + " + " +
+			cache_delta + " == " + (delta_g[g]+cache_delta);
+			double cache_delta3 = delta_g[g];
+			initialNumTargets = add_target_penalty(l2);
+			assert Math.abs(delta_g[g]+cache_delta2) < 0.1 : delta_g[g] + " + " +
+			cache_delta2 + " == " + (delta_g[g]+cache_delta2) + ", " 
+			+ cache_delta + " + " + cache_delta3;
+		}
+		System.err.println("numIterRun: " + numIterRun);
+
+		for (int i=0; i<b_g.length; ++i) {
+			b_g[i] = best_b_g[i];
+		}
+		for (int i=0; i<b_p.length; ++i) {
+			b_p[i] = best_b_p[i];
+		}
+		
+		int finalNumPaths = 0;
+		for (int i=0; i<num_paths; ++i) {
+			finalNumPaths += b_p[i];
+		}
+		int finalNumGenes = 0;
+		for (int i=0; i<num_genes; ++i) {
+			finalNumGenes += b_g[i];
+		}
+		int finalNumTargets = 0;
+		for (int i=0; i<index_to_targets.length; ++i) {
+			finalNumTargets += b_g[index_to_targets[i]];
+		}
+		System.err.println("finalNumPaths: " + finalNumPaths);
+		System.err.println("finalNumGenes: " + finalNumGenes);
+		System.err.println("finalNumTargets: " + finalNumTargets);
+	}
+	
+	public void compute_initial_delta() {
+		for (int i=0; i<num_genes; ++i) {
+			delta_g[i] = l1;
+			b_g[i] = 1;
+		}
+		for (int i=0; i<num_paths; ++i) {
+			b_p[i] = 1;
+			int target = P[i][P[i].length-1];
+			int targetIndex = targets_to_index[target];
+			f[targetIndex] += w_P[i];
+			for (int j=0; j<P[i].length-1; ++j) {
+				f_g_t[targetIndex][P[i][j]] -= w_P[i];
+        			delta_g[P[i][j]] -= w_P[i];
+			}
+        		delta_g[target] -= w_P[i];
+        		f_g_t[targetIndex][target] -= w_P[i];
+		}
+		add_target_penalty(l2);
+	}
+	
+	public int add_target_penalty(double penalty) {
+		int numTargets = 0;
+		for (int i=0; i<T.length; ++i) {
+			//System.err.println(f[i] + ", " + T[i].length);
+			if (f[i] >= 1) {
+				++numTargets;
+			}
+			for (int j=0; j<T[i].length; ++j) {
+				short g = T[i][j];
+				if (f[i] >= 1) {
+					if (f[i] + f_g_t[i][g] < 1) {
+						delta_g[g] -= penalty;
+					}
+				}
+				else {
+					if (f[i] + f_g_t[i][g] >= 1) {
+						delta_g[g] += penalty;
+					}
+				}
+			}
+		}
+		return numTargets;
+	}
+	
+	public int update_delta_on_activation(int g) {
+		int num_activated = 0;
+		for (int i=0; i<P_g[g].length; ++i) {
+			int p = P_g[g][i];
+			assert b_p[p] == 0;
+			int r = P[p].length;
+			short g3 = -1;
+			for (int j=0; j<P[p].length; ++j) {
+				short g2 = P[p][j];
+				r -= b_g[g2];
+				if (b_g[g2] == 0) {
+					g3 = g2;
+				}
+			}
+			int t = P[p][P[p].length-1];
+			int tIndex = targets_to_index[t];
+			
+			// So the path needs to be activated now
+			if (r == 0) {
+				for (int j=0; j<P[p].length; ++j) {
+					int g2 = P[p][j];
+					delta_g[g2] -= w_P[p]; // because disabling g2 will disable the path now
+					f_g_t[tIndex][g2] -= w_P[p];
+				}
+				f[tIndex] += w_P[p]; // flow increasing through target as path being activated
+				delta_g[g] -= w_P[p]; // deactivating gene will lead to loss of path weight
+				f_g_t[tIndex][g] -= w_P[p];
+				b_p[p] = 1;
+				++num_activated;
+			}
+			// The path is one gene flip away from activation
+			else if (r == 1) {
+				assert g3 != -1;
+				assert g3 != g;
+				delta_g[g3] += w_P[p];
+				f_g_t[tIndex][g3] += w_P[p];
+			}
+		}
+		return num_activated;
+	}
+	
+	public void update_delta_on_deactivation(int g) {
+		for (int i=0; i<P_g[g].length; ++i) {
+			int p = P_g[g][i];
+			b_p[p] = 0;
+			int r = P[p].length;
+			int inactive_gene = -1;
+			for (int j=0; j<P[p].length; ++j) {
+				short g2 = P[p][j];
+				r -= b_g[g2];
+				if (b_g[g2] == 0 && g != g2) {
+					inactive_gene = g2;
+				}
+			}
+			assert r >= 1;
+			
+			int t = P[p][P[p].length-1];
+			int tIndex = targets_to_index[t];
+			
+			if (r == 2) {
+				assert inactive_gene != -1;
+				delta_g[inactive_gene] -= w_P[p];
+				f_g_t[tIndex][inactive_gene] -= w_P[p];
+			}
+			else if (r == 1) {
+				for (int j=0; j<P[p].length; ++j) {
+					int g2 = P[p][j];
+					delta_g[g2] += w_P[p];
+					f_g_t[tIndex][g2] += w_P[p];
+				}
+				f[tIndex] -= w_P[p];
+				delta_g[g] += w_P[p];
+				f_g_t[tIndex][g] += w_P[p];
+			}
+		}
+	}
+	
+	public void checkDelta(int g) {
+		double delta = 0.;
+		for (int i=0; i<P_g[g].length; ++i) {
+			int p = P_g[g][i];
+			int r = P[p].length;
+			for (int j=0; j<P[p].length; ++j) {
+				short g2 = P[p][j];
+				r -= b_g[g2];
+			}
+			
+			if (r == 0) {
+				assert b_p[p] == 1;
+				assert b_g[g] == 1;
+				delta -= w_P[p];
+			}
+			else if (r == 1) {
+				assert b_p[p] == 0;
+				if (b_g[g] == 0) {
+					delta += w_P[p];
+				}
+			}
+		}
+		
+		if (b_g[g] == 0) {
+			delta -= l1;
+		}
+		else {
+			delta += l1;
+		}
+		
+		for (int i=0; i<T.length; ++i) {
+			for (int j=0; j<T[i].length; ++j) {
+				if (T[i][j] != g) {
+					continue;
+				}
+				if (f[i] >= 1) {
+					if (f[i] + f_g_t[i][g] < 1) {
+						delta -= l2;
+					}
+				}
+				else {
+					if (f[i] + f_g_t[i][g] >= 1) {
+						delta += l2;
+					}
+				}
+			}
+		}
+
+		assert Math.abs(delta-delta_g[g]) < 0.1 : g + ", " + Double.toString(delta) + " - " +
+		Double.toString(delta_g[g]) + " == " + Double.toString(delta-delta_g[g]);
+	}
+
+    public void readData(String pathFilepath) {
+        g_to_i = new HashMap<String, Short>();
+        HashSet<Short> targetSet = new HashSet<Short>();
+        ArrayList<Integer> numPathsPerGene = new ArrayList<Integer>();
+        BufferedReader br = null;
+        float total_score = 0;
+        try {
+			LineNumberReader lnr = new LineNumberReader(new FileReader(
+						new File(pathFilepath)));
+			lnr.skip(Long.MAX_VALUE);
+			num_paths = lnr.getLineNumber();
+			lnr.close();
+			
+			System.err.println("Num Paths: " + num_paths);
+			
+			P = new short[num_paths][];
+			w_P = new double[num_paths];
+
+            br = new BufferedReader(new FileReader(pathFilepath));
+			String g, line;
+            for (int lineNum=0; 
+            		(line = br.readLine()) != null;
+            		++lineNum) 
+            {
+                String [] lineSplit = line.split("\\s+");
+				w_P[lineNum] = Double.parseDouble(lineSplit[0]);
+				total_score += w_P[lineNum];
+				P[lineNum] = new short[lineSplit.length-2];
+				for (int i=2; i<lineSplit.length; ++i) {
+					g = lineSplit[i];
+					if (!g_to_i.containsKey(g)) {
+						assert g_to_i.size() <= Short.MAX_VALUE :
+							Integer.toString(g_to_i.size());
+						g_to_i.put(g, (short) g_to_i.size());
+						numPathsPerGene.add(0);
+					}
+					short geneIndex = g_to_i.get(g);
+					P[lineNum][lineSplit.length-i-1] = geneIndex;
+					numPathsPerGene.set(geneIndex, 
+							numPathsPerGene.get(geneIndex)+1);
+				}
+				short target = g_to_i.get(lineSplit[2]);
+				targetSet.add(target);
+			}
+		}
+        catch(IOException ie) {
+            ie.printStackTrace();
+        }
+        
+        num_genes = g_to_i.size();
+        l1 *= total_score/num_genes;
+        l2 *= total_score/targetSet.size();
+        i_to_g = new String[num_genes];
+        delta_g = new double[num_genes];
+        for (Map.Entry<String, Short> e : g_to_i.entrySet()) {
+        		i_to_g[e.getValue()] = e.getKey();
+        }
+        
+        b_p = new byte[num_paths];
+		best_b_p = new byte[num_paths];
+        for (int i=0; i<num_paths; ++i) {
+        		b_p[i] = 1;
+        }
+
+        b_g = new byte[num_genes];
+		best_b_g = new byte[num_genes];
+        P_g = new int[num_genes][];
+        targets_to_index = new short[num_genes];
+        for (int i=0; i<num_genes; ++i) {
+        		b_g[i] = 1;
+        		P_g[i] = new int[numPathsPerGene.get(i)];
+        		targets_to_index[i] = -1;
+        }
+        int [] gene_path_index = new int[num_genes];
+        for (int i=0; i<num_genes; ++i) {
+        		gene_path_index[i] = numPathsPerGene.get(i);
+        }
+        TIntHashSet [] t = new TIntHashSet[num_genes];
+        for (int i=0; i<num_genes; ++i) {
+        		t[i] = new TIntHashSet();
+        }
+        for (int i=0; i<num_paths; ++i) {
+        		for (int j=0; j<P[i].length; ++j) {
+        			int g = P[i][j];
+        			t[g].add(i);
+        			P_g[g][--gene_path_index[g]] = i;
+        		}
+        }
+        
+        index_to_targets = new short[targetSet.size()];
+        T = new short[index_to_targets.length][];
+        
+        short k=0;
+        for (short target : targetSet) {
+        		index_to_targets[k] = target;
+        		targets_to_index[target] = k;
+        		++k;
+        }
+
+        ArrayList<HashSet<Short>> targets_to_genes = 
+        		new ArrayList<HashSet<Short>>();
+        for (int i=0; i<index_to_targets.length; ++i) {
+        		targets_to_genes.add(new HashSet<Short>());
+        }
+        for (int i=0; i<num_paths; ++i) {
+        		short target = P[i][P[i].length-1];
+        		int targetIndex = targets_to_index[target];
+        		for (int j=0; j<P[i].length-1; ++j) {
+        			targets_to_genes.get(targetIndex).add(P[i][j]);
+        		}
+        		targets_to_genes.get(targetIndex).add(target);
+        }
+        
+        f_g_t = new double[index_to_targets.length][];
+        f = new double[index_to_targets.length];
+        for (int i=0; i<index_to_targets.length; ++i) {
+        		T[i] = new short[targets_to_genes.get(i).size()];
+        		f_g_t[i] = new double[num_genes];
+        		int j = 0;
+        		for (short g : targets_to_genes.get(i)) {
+        			T[i][j++] = g; 
+        		}
+        }
+    }
+}
