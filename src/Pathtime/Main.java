@@ -115,12 +115,28 @@ public class Main {
 		try {
 			br = new BufferedReader(new FileReader(configFilename));
 			String line;
+			int i = 0;
 			for (; (line = br.readLine()) != null;) {
+				i += 1;
 				if (line.trim() == "") {
 					continue;
 				}
-				String [] lineSplit = line.split("\t");
-				assert lineSplit.length == 2;
+				String [] lineSplit = line.split("#");
+				String temp = lineSplit[0].trim();
+				if (lineSplit.length >= 2 && temp.length() == 0) {
+					continue;
+				}
+				if (lineSplit[0].trim().length() == 0) {
+					continue;
+				}
+				lineSplit = lineSplit[0].trim().split("\t");
+				if (lineSplit.length == 0) {
+					continue;
+				}
+				if (lineSplit.length == 1) {
+					System.err.println("ERROR: parameter " + lineSplit[0] + " in config file " + configFilename + " does not have a value! (line " + i + ")");
+					System.exit(1);
+				}
 				
 				System.err.println(lineSplit[0] + "\t" + lineSplit[1]);
 				args.put(lineSplit[0].trim().toLowerCase(), lineSplit[1].trim());
@@ -364,6 +380,7 @@ public class Main {
 					it.advance();
 					short gene = it.key();
 					
+					/*
 					if (isMirna[tf] 
 							&& 1 == (int) (
 									Math.signum(foldChange[tf][startPhase])
@@ -371,6 +388,7 @@ public class Main {
 					{
 						continue;
 					}
+					*/
 
 					double score = it.value();
 					if (((numPathsForSource[source] >= maxNumPaths) || (numPathsForTarget[gene] >= maxNumPaths)) && maxNumPaths != 0)
@@ -1267,6 +1285,11 @@ public class Main {
 				line = br.readLine();
 				String [] lineSplit = line.split("\\s+");
 				numPhases = lineSplit.length;
+				if (numPhases == 0) {
+					System.err.println("ERROR: The file containing targets for each time point has a blank line at the top");
+					System.exit(1);
+				}
+
 				phaseGenes = new TShortHashSet[numPhases];
 				phaseTfs = new TShortHashSet[numPhases];
 			}
@@ -1523,6 +1546,7 @@ public class Main {
 				}
 			}
 			
+			/*
 			// Compute fold change
 			foldChange = new double[numGenes][];
 			br = new BufferedReader(new FileReader(timeseriesFilepath));
@@ -1542,6 +1566,7 @@ public class Main {
 				foldChange[gene] = change;
 			}
 			br.close();
+			*/
 
 			// Read TF-gene interactions
 			System.err.println("Reading TFs");

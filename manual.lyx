@@ -227,17 +227,21 @@ human_encode_100.txt
 \end_layout
 
 \begin_layout Enumerate
-A list of targets for a particular phase is in the format
+A list of target genes for a particular time point (
+\family typewriter
+TPtargetsfile)
+\family default
+ is in the format
 \begin_inset Newline newline
 \end_inset
 
 
 \family typewriter
-<target 1 for phase 1> <target 1 for phase 2>...
+<target gene 1 for phase 1> <target gene 1 for phase 2>...
 \begin_inset Newline newline
 \end_inset
 
-<target 2 for phase 1> <target 2 for phase 2>...
+<target gene 2 for phase 1> <target gene 2 for phase 2>...
 \begin_inset Newline newline
 \end_inset
 
@@ -295,8 +299,10 @@ The time series file should be in the format
 
 \family default
 It should also have a 
+\series bold
 \emph on
 header
+\series default
 \emph default
  row at the top.
  The log-fold change can be with respect to a 0 time point or with respect
@@ -345,7 +351,29 @@ Data needed
 \family typewriter
 timeseriesFilepath
 \family default
- - The path to the file containing the time series gene expression data
+ - The path to the file containing the log fold change time series gene
+ expression data.
+ If you are merging time points together (we HIGHLY recommend merging time
+ points to 4-5 phases for easier visualization.
+ We merged the HIV expression time points down to 3 in our paper), then
+ please have the log fold change for each merged time phase.
+ So if you are merging time points 2 and 3 together, you could compute the
+ log fold change of the average of 2 and 3 relative to time point 1 (or
+ relative to the average of time points 2 and 3 of a control condition)
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+NOTE: the number of time points in this file MUST be 
+\series bold
+equal
+\series default
+ to the number of columns in the 
+\family typewriter
+TPtargetsFile
 \end_layout
 
 \begin_layout Enumerate
@@ -406,15 +434,6 @@ maxPathLength
 \begin_layout Enumerate
 
 \family typewriter
-phases 
-\family default
-- If you are merging time points together (we HIGHLY recommend merging down
- to 4-5 time points 
-\end_layout
-
-\begin_layout Enumerate
-
-\family typewriter
 rnaHitsFilepath
 \family default
  - Path to the file containing RNA hits if you have one
@@ -434,7 +453,8 @@ numProteinsPerPhaseToSelect
 minRankingFoldChange
 \family default
  - Only proteins that show a big change in rank from one time point to another
- are selected (as we want to select the proteins that 
+ are selected (as we want to select the proteins that are uniquely relevant
+ to a new phase)
 \end_layout
 
 \begin_layout Enumerate
