@@ -211,6 +211,8 @@ public class Main {
 		readData(args);
 		System.err.println("Data read");
 
+		// Note: returns source -> target order; Does that ordering when
+		// recording paths in P from pathBuffer
 		searchPaths();
 
 		// Sort searched paths
@@ -221,13 +223,13 @@ public class Main {
 		Arrays.sort(pathIndexList, new PathCompare(w_P));
 		double totalScore = 0;
 		for (int i=0; i<numPaths; ++i) {
-			// Swap paths
-        		short[] temp = P[i];
-        		double temp2 = w_P[i];
-        		P[i] = P[pathIndexList[i]];
-        		w_P[i] = w_P[pathIndexList[i]];
-        		P[pathIndexList[i]] = temp;
-        		w_P[pathIndexList[i]] = temp2;
+			// Swap paths to order them according ot pathIndexList
+			short[] temp = P[i];
+			double temp2 = w_P[i];
+			P[i] = P[pathIndexList[i]];
+			w_P[i] = w_P[pathIndexList[i]];
+			P[pathIndexList[i]] = temp;
+			w_P[pathIndexList[i]] = temp2;
 		}
 
 		// Add targets to paths
@@ -444,7 +446,7 @@ public class Main {
 		// pathPhase is set to the highest phase gene in the path
 		// firstCurPhaseGene is the index of the earliest gene in the path
 		// belonging to a phase <= pathPhase
-		for (int k=l-1; k>=0; --k) {
+		for (int k=l-1; k>=1; --k) {
 			short gene = p[k];
 			for (int j=numPhases-1; j>=0; --j) {
 				if (phaseGenes[j].contains(gene)) {
@@ -462,7 +464,7 @@ public class Main {
 		// phase
 		boolean hasPrevPhaseGene = false;
 		if (pathPhase > 0) {
-			for (int k=firstCurPhaseGene-1; k>=0; --k) {
+			for (int k=firstCurPhaseGene-1; k>=1; --k) {
 				short gene = p[k];
 				if (phaseGenes[pathPhase-1].contains(gene)) {
 					hasPrevPhaseGene = true;
@@ -476,9 +478,13 @@ public class Main {
 		int startPhase = pathPhase;
 		int endPhase = pathPhase;
 
-		if (pathPhase <= 0) {
+		if (pathPhase < 0) {
 			startPhase = 0;
 			endPhase = 0;
+		}
+		else if (pathPhase == 0) {
+			startPhase = 0;
+			endPhase = 1;
 		}
 		else if (pathPhase > 0 && !hasPrevPhaseGene) {
 			startPhase = pathPhase+1;

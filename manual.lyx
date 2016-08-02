@@ -604,13 +604,61 @@ python computeTopProteinsForTP.py <config file>
 \family default
 This will create a file 
 \family typewriter
-<path file>.phasegenes.txt
+<path file>.topproteins.txt
 \family default
  where 
 \family typewriter
 <path file>
 \family default
  is as entered in the config file
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The file has the top genes for each phase.
+ The columns of the file are as follows.
+ For the 0th phase (phase numbering in the file starts at 0), the columns
+ are
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+
+\family typewriter
+<gene> <rank in 0th phase> <rank in 1st phase> ...
+ <rank in last phase> <% flow through gene in phase> <gene a source or not>
+ <gene intermediate signaling protein or not> <gene a TF or not> <gene rna
+ screen hit or not (if rna hits file provided)>
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+
+\family default
+For subsequent phases, the columns are
+\family typewriter
+
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+<gene> <rank in 0th phase> <rank in 1st phase> ...
+ <rank in last phase> <% flow through gene in phase> <gene a target in prev
+ phase or not> <gene intermediate signaling protein or not> <gene a TF or
+ not> <gene rna screen hit or not (if rna hits file provided)> <gene a source
+ or not>
 \end_layout
 
 \begin_layout Section*
