@@ -1,0 +1,20 @@
+numTPtargets	200
+maxNumPaths	100000
+maxPathLength	10
+TPtargetsFile	phases.txt
+timeseriesFilepath	diff_t4_t10.txt
+ppiNetworkFilepath	string_ppi.txt
+sourcesFilepath	tp0_sources.txt
+tfGeneFile	pd.txt
+exprProcessing (no normalization, normalize)	no normalization
+pathFile	/Users/sj/temp
+rnaHitsFilepath	sources.txt
+numProteinsPerPhaseToSelect	50
+minRankingFoldChange	1.5
+numGenesToDisplay	15
+graphNodeWidth	60
+graphNodeHeight	40
+l1	1
+l2 	0.3
+L	1
+N	1000
